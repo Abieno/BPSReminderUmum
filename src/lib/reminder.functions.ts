@@ -5,6 +5,22 @@ import { kirimWa, susunPesan } from "@/lib/wa.server";
 
 const schema = z.object({ reminderId: z.string().uuid() });
 
+/**
+ * Uji trigger otomatis: menjalankan logika cron yang sama persis untuk
+ * tanggal simulasi yang dipilih admin. Dipanggil dari tombol di Pengaturan.
+ */
+export const ujiCronReminder = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({ tanggal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD") })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    await (await import("@/lib/gate.server")).requireUnlocked();
+    const { jalankanCronReminder } = await import("@/lib/cron-reminder.server");
+    return jalankanCronReminder(data.tanggal);
+  });
+
 /** Kirim reminder manual (tombol "Kirim sekarang") ke nomor WA Bagian Umum. */
 export const kirimReminderManual = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => schema.parse(data))
