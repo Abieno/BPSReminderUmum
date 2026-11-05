@@ -5,10 +5,6 @@ import { kirimWa, susunPesan } from "@/lib/wa.server";
 
 const schema = z.object({ reminderId: z.string().uuid() });
 
-/**
- * Uji trigger otomatis: menjalankan logika cron yang sama persis untuk
- * tanggal simulasi yang dipilih admin. Dipanggil dari tombol di Pengaturan.
- */
 export const ujiCronReminder = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     z
