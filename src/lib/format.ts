@@ -3,6 +3,25 @@ export const JENIS_LABEL: Record<string, string> = {
   kenaikan_gaji_berkala: "Kenaikan Gaji Berkala (KGB)",
 };
 
+/** Hasil satu kali jalannya pengiriman otomatis (cron) atau uji manualnya. */
+export type CronDetail = {
+  nama: string;
+  jenis: string;
+  jadwal: string;
+  status: "terkirim" | "gagal" | "sudah-ada";
+  error?: string;
+};
+
+export type HasilCron = {
+  ok: boolean;
+  tanggal: string;
+  terkirim: number;
+  gagal: number;
+  sudahTerkirimSebelumnya: number;
+  alasan?: string;
+  detail?: CronDetail[];
+};
+
 export function formatTanggal(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);
   return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
@@ -45,60 +64,20 @@ export function buildPesan(d: PesanData): string {
     d.jenis === "kenaikan_pangkat"
       ? "PENGINGAT KENAIKAN PANGKAT"
       : "PENGINGAT KENAIKAN GAJI BERKALA (KGB)";
-
-  let sisaText: string;
-
-  if (d.sisa > 1) {
-    sisaText = `${d.sisa} hari lagi`;
-  } else if (d.sisa === 1) {
-    sisaText = "1 hari lagi";
-  } else if (d.sisa === 0) {
-    sisaText = "HARI INI";
-  } else {
-    sisaText = `terlewat ${Math.abs(d.sisa)} hari`;
-  }
-
   const baris = [
-    `🔔 *${judul}*`,
+    `*${judul}*`,
     "",
-    `👤 *Nama*`,
-    `${d.nama}`,
-    "",
-    `🪪 *NIP*`,
-    `${d.nip}`,
-    "",
-    `💼 *Jabatan*`,
-    `${d.jabatan || "-"}`,
+    `Nama    : ${d.nama}`,
+    `NIP     : ${d.nip}`,
+    `Jabatan : ${d.jabatan || "-"}`,
   ];
-
-  if (d.jenis === "kenaikan_pangkat") {
-    baris.push(
-      "",
-      `🏷️ *Golongan*`,
-      `${d.golongan || "-"}`,
-    );
-  }
-
-  if (d.unit_kerja) {
-    baris.push(
-      "",
-      `🏢 *Unit Kerja*`,
-      `${d.unit_kerja}`,
-    );
-  }
-
+  if (d.jenis === "kenaikan_pangkat") baris.push(`Golongan: ${d.golongan || "-"}`);
+  if (d.unit_kerja) baris.push(`Unit    : ${d.unit_kerja}`);
   baris.push(
+    `Tanggal target: ${formatTanggal(d.tanggal)}`,
+    `Sisa waktu    : ${d.sisa} hari lagi`,
     "",
-    `📅 *Tanggal Target*`,
-    `${formatTanggal(d.tanggal)}`,
-    "",
-    `⏳ *Sisa Waktu*`,
-    `*${sisaText}*`,
-    "",
-    "━━━━━━━━━━━━━━━━━━━━",
-    "",
-    "Terima kasih — SIRENA BPS",
+    "Mohon segera disiapkan berkas dan prosesnya. — Bagian Umum BPS",
   );
-
   return baris.join("\n");
 }
