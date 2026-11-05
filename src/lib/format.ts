@@ -2,8 +2,6 @@ export const JENIS_LABEL: Record<string, string> = {
   kenaikan_pangkat: "Kenaikan Pangkat",
   kenaikan_gaji_berkala: "Kenaikan Gaji Berkala (KGB)",
 };
-
-/** Hasil satu kali jalannya pengiriman otomatis (cron) atau uji manualnya. */
 export type CronDetail = {
   nama: string;
   jenis: string;
