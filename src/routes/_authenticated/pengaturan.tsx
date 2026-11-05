@@ -1,7 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, KeyRound, Loader2, Lock, Phone, Save, ShieldCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  FlaskConical,
+  KeyRound,
+  Loader2,
+  Lock,
+  Phone,
+  Play,
+  Save,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -10,8 +23,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { isValidWa, normalizeWa } from "@/lib/format";
+import { Badge } from "@/components/ui/badge";
+import { isValidWa, normalizeWa, type HasilCron } from "@/lib/format";
 import { gantiSandi, lihatSandi } from "@/lib/gate.functions";
+import { ujiCronReminder } from "@/lib/reminder.functions";
 import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/_authenticated/pengaturan")({
@@ -79,21 +94,25 @@ function PengaturanPage() {
     <div className="max-w-2xl space-y-6">
       <header>
         <h1 className="text-2xl font-bold md:text-3xl">Pengaturan</h1>
+        <p className="mt-1 text-muted-foreground">
+          Konfigurasi tujuan pengiriman dan gateway WhatsApp.
+        </p>
       </header>
 
       <Card className="shadow-soft">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Phone className="size-5 text-primary" /> Nomor WhatsApp Tujuan Pengingat
+            <Phone className="size-5 text-primary" /> Nomor WhatsApp Tujuan Reminder
           </CardTitle>
           <CardDescription>
-            Masukkan nomor yang akan dijadikan tujuan untuk mengirim pesan pengingatnya
+            Satu nomor milik admin/Bagian Umum. Semua reminder pegawai dikirim ke nomor ini, bukan
+            ke nomor masing-masing pegawai.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="wa">Nomor WhatsApp Tujuan</Label>
+              <Label htmlFor="wa">Nomor WhatsApp Bagian Umum</Label>
               <Input
                 id="wa"
                 inputMode="tel"
@@ -128,23 +147,137 @@ function PengaturanPage() {
           <CardTitle className="flex items-center gap-2">
             <KeyRound className="size-5 text-primary" /> WhatsApp Gateway
           </CardTitle>
-          <CardDescription>Provider yang digunakan "Fonnte"</CardDescription>
+          <CardDescription>Provider yang digunakan: Fonnte.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
             <ShieldCheck className="size-4" />
             <AlertTitle>API key tersimpan aman di server</AlertTitle>
             <AlertDescription>
-              Setting terlebih dahulu nomor yang akan dijadikan sumber chat di "FONNTE"
+              Token Fonnte disimpan sebagai secret backend (FONNTE_TOKEN) dan tidak pernah dikirim
+              ke browser. Untuk mengganti token, minta pengelola aplikasi memperbarui secret
+              tersebut.
             </AlertDescription>
           </Alert>
           <p className="text-sm text-muted-foreground">
             Pengecekan tanggal jatuh tempo berjalan otomatis setiap hari pukul 08.00 WIB, lalu
-            mengirim pesan ke nomor tujuan yang telah diisi di atas.
+            mengirim pesan ke nomor tujuan di atas. Sistem tidak akan mengirim pesan dobel untuk
+            jadwal yang sama, dan jadwal yang terlewat dikirim sekali terlambat.
           </p>
         </CardContent>
       </Card>
+
+      <UjiCronCard />
     </div>
+  );
+}
+
+function UjiCronCard() {
+  const jalankan = useServerFn(ujiCronReminder);
+  const [tanggal, setTanggal] = useState(() =>
+    new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10),
+  );
+  const [hasil, setHasil] = useState<HasilCron | null>(null);
+
+  const uji = useMutation({
+    mutationFn: (t: string) => jalankan({ data: { tanggal: t } }),
+    onSuccess: (res) => setHasil(res),
+    onError: (e: Error) => toast.error(`Gagal menjalankan uji: ${e.message}`),
+  });
+
+  return (
+    <Card className="shadow-soft">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FlaskConical className="size-5 text-primary" /> Uji Pengingat Otomatis
+        </CardTitle>
+        <CardDescription>
+          Menjalankan logika yang sama persis dengan pengiriman otomatis harian, untuk tanggal
+          pilihan Anda. Hasilnya juga masuk ke halaman Riwayat.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-2">
+            <Label htmlFor="tanggal-uji">Tanggal simulasi</Label>
+            <Input
+              id="tanggal-uji"
+              type="date"
+              value={tanggal}
+              onChange={(e) => setTanggal(e.target.value)}
+              className="w-44"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="brand"
+            disabled={uji.isPending}
+            onClick={() => uji.mutate(tanggal)}
+          >
+            {uji.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Play className="size-4" />
+            )}
+            Jalankan uji
+          </Button>
+        </div>
+
+        {hasil && !hasil.ok && (
+          <Alert variant="destructive">
+            <XCircle className="size-4" />
+            <AlertTitle>Uji tidak dijalankan</AlertTitle>
+            <AlertDescription>{hasil.alasan}</AlertDescription>
+          </Alert>
+        )}
+
+        {hasil?.ok && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2 text-sm">
+              <Badge className="gap-1">
+                <CheckCircle2 className="size-3.5" /> {hasil.terkirim} terkirim
+              </Badge>
+              {hasil.gagal > 0 && (
+                <Badge variant="destructive" className="gap-1">
+                  <XCircle className="size-3.5" /> {hasil.gagal} gagal
+                </Badge>
+              )}
+              <Badge variant="secondary" className="gap-1">
+                {hasil.sudahTerkirimSebelumnya} sudah pernah terkirim (tidak dobel)
+              </Badge>
+            </div>
+            {hasil.detail && hasil.detail.length > 0 ? (
+              <div className="max-h-72 space-y-1.5 overflow-y-auto rounded-xl border border-border p-3">
+                {hasil.detail.map((d, i) => (
+                  <div key={i} className="flex items-start justify-between gap-3 text-sm">
+                    <span>
+                      <span className="font-medium">{d.nama}</span>
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · {d.jenis} · {d.jadwal}
+                      </span>
+                    </span>
+                    <span
+                      className={
+                        d.status === "terkirim"
+                          ? "shrink-0 text-xs font-medium text-primary"
+                          : "shrink-0 text-xs font-medium text-destructive"
+                      }
+                    >
+                      {d.status === "terkirim" ? "terkirim" : (d.error ?? "gagal")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Tidak ada jadwal yang jatuh tempo untuk tanggal {hasil.tanggal}.
+              </p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -188,7 +321,8 @@ function SandiCard() {
           <Lock className="size-5 text-primary" /> Kata Sandi Akses Aplikasi
         </CardTitle>
         <CardDescription>
-          Aplikasi tidak memakai akun login, Aplikasi hanya menggunakan kata sandi yang telah ditentukan
+          Aplikasi tidak memakai akun login. Siapa pun yang tahu kata sandi ini bisa membuka
+          aplikasi.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
