@@ -293,7 +293,6 @@ function SandiCard() {
     queryKey: ["sandi-akses"],
     queryFn: () => ambil(),
   });
-
   const simpan = useMutation({
     mutationFn: (sandi: string) => ganti({ data: { sandi } }),
     onSuccess: () => {
