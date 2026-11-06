@@ -16,6 +16,17 @@ export function tanggalValid(iso: string | null | undefined): boolean {
   );
 }
 
+/**
+ * Jalankan pengiriman reminder untuk "hari" tertentu (format YYYY-MM-DD).
+ * Dipakai oleh endpoint cron harian DAN tombol uji di halaman Pengaturan,
+ * sehingga keduanya selalu menjalankan logika yang identik.
+ *
+ * Aturan pengiriman per jadwal (reminder_schedules):
+ * - Dikirim saat tanggal target dikurangi hari_sebelum <= hari berjalan.
+ * - Jadwal yang terlewat (misal saat aplikasi mati) dikirim sekali terlambat.
+ * - Anti dobel: setiap pasangan (reminder, jadwal H-x) hanya dikirim
+ *   satu kali selamanya, ditandai log otomatis berstatus berhasil.
+ */
 export async function jalankanCronReminder(hariIni: string): Promise<HasilCron> {
   const kosong: HasilCron = {
     ok: false,
