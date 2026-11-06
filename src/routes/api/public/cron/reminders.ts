@@ -36,8 +36,8 @@ async function jalankan(request: Request) {
 export const Route = createFileRoute("/api/public/cron/reminders")({
   server: {
     handlers: {
-      POST: async ({ request }: { request: Request }) => jalankan(request),
-      GET: async ({ request }: { request: Request }) => jalankan(request),
+      POST: async ({ request }) => jalankan(request),
+      GET: async ({ request }) => jalankan(request),
     },
   },
 });
